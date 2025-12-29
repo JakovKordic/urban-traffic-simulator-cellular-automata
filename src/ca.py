@@ -162,14 +162,13 @@ def choose_turn(
     # 4) Sigurnosni fallback (ne bi se trebalo dogoditi)
     return incoming_dir
 
+def add_request(requests, key, item):
+    """Dodaj item u requests[key]; ako key ne postoji, napravi praznu listu."""
+    if key not in requests:
+        requests[key] = []
+    requests[key].append(item)
 
 def step(roads, occ, rng=None):
-    """
-    Jedan CA korak (brzina 1) + skretanje na raskrižju.
-    - Skuplja zahtjeve tko želi ući u koju ćeliju (requests)
-    - Ako je target raskrižje, vozilo može promijeniti smjer (ravno/lijevo/desno)
-    - Rješava konflikte: na raskrižju prolazi jedan po PRIORITY
-    """
     if rng is None:
         rng = random.Random()
 
@@ -177,11 +176,10 @@ def step(roads, occ, rng=None):
     w = len(roads[0])
     next_occ = empty_state(h, w)
 
-    # requests[(ty,tx)] = list of (from_y, from_x, incoming_dir, dir_after_move)
-    requests = {} # rječnik koji vozilu pridružuje listu vrijednosti koje predstavljaju njegove trenutne 
-    # koordinate, u kojem se smjeru kreće i smjer nakon prelaska u sljedeću stanicu
+    # requests: ciljna ćelija -> lista kandidata (from_y, from_x, incoming_dir, out_dir)
+    requests = {}
 
-    # 1) generiraj zahtjeve
+    # 1) Generiranje zahtjeva
     for incoming_dir in DIRS:
         dy, dx = DXY[incoming_dir]
         for y in range(h):
@@ -189,32 +187,27 @@ def step(roads, occ, rng=None):
                 if not occ[incoming_dir][y][x]:
                     continue
 
-                # ako smjer nije dozvoljen u ovoj ćeliji -> ostani
-                if incoming_dir not in roads[y][x]:
-                    requests.setdefault((y, x), []).append((y, x, incoming_dir, incoming_dir))
-                    continue
-
                 ny, nx = y + dy, x + dx
 
-                # rub mape: ostani
+                # izlazak iz mape -> vozilo nestaje
                 if not (0 <= ny < h and 0 <= nx < w):
-                    requests.setdefault((y, x), []).append((y, x, incoming_dir, incoming_dir))
                     continue
 
-                # cilj mora podržavati dolazni smjer (da traka “nastavlja” u tu ćeliju)
+                # ako ciljna ćelija ne podržava dolazni smjer -> ostani
                 if incoming_dir not in roads[ny][nx]:
-                    requests.setdefault((y, x), []).append((y, x, incoming_dir, incoming_dir))
+                    add_request(requests, (y, x), (y, x, incoming_dir, incoming_dir))
                     continue
 
-                # Ako ulaziš u raskrižje, odaberi novi smjer nakon ulaska
+                # odabir smjera nakon ulaska u raskrižje
                 if is_intersection(roads, ny, nx):
                     out_dir = choose_turn(roads, ny, nx, incoming_dir, rng)
                 else:
                     out_dir = incoming_dir
 
-                requests.setdefault((ny, nx), []).append((y, x, incoming_dir, out_dir))
+                # uspješan pokušaj ulaska u ciljnu ćeliju
+                add_request(requests, (ny, nx), (y, x, incoming_dir, out_dir))
 
-    # 2) rješavanje zahtjeva i upis u next
+    # 2) Rješavanje zahtjeva i upis u next_occ
     for (ty, tx), candidates in requests.items():
         if len(candidates) == 1:
             fy, fx, incoming_dir, out_dir = candidates[0]
@@ -222,11 +215,10 @@ def step(roads, occ, rng=None):
             continue
 
         if is_intersection(roads, ty, tx):
-            # pobjednik po PRIORITY se i dalje bira po incoming_dir (tko dolazi)
             winner = None
             for p in PRIORITY:
                 for c in candidates:
-                    if c[2] == p:  # c[2] je incoming_dir
+                    if c[2] == p:  # incoming_dir
                         winner = c
                         break
                 if winner is not None:
@@ -238,16 +230,14 @@ def step(roads, occ, rng=None):
             fy, fx, incoming_dir, out_dir = winner
             next_occ[out_dir][ty][tx] = True
 
-            # ostali ostaju na mjestu u svojoj traci
+            # ostali ostaju na mjestu
             for fy2, fx2, incoming2, out2 in candidates:
                 if (fy2, fx2, incoming2, out2) == winner:
                     continue
                 next_occ[incoming2][fy2][fx2] = True
-
         else:
-            # nije raskrižje: konzervativno - nitko ne ulazi, svi ostaju
+            # nije raskrižje: nitko ne ulazi, svi ostaju
             for fy, fx, incoming_dir, out_dir in candidates:
                 next_occ[incoming_dir][fy][fx] = True
 
     return next_occ
-
