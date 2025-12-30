@@ -1,15 +1,16 @@
 import random
 
 # Smjerovi kao znakovi radi
-DIRS = ("N", "E", "S", "W") # tuple jer je immutable
-DXY = {"N": (-1, 0), "E": (0, 1), "S": (1, 0), "W": (0, -1)} # rječnik koji iz ključa smjera daje promjenu koordinata ovisno o smjeru kretnje
+DIRS = ("N", "E", "S", "W")  # tuple jer je immutable
+DXY = {"N": (-1, 0), "E": (0, 1), "S": (1, 0), "W": (0, -1)}  # promjena (dy, dx)
 
-PRIORITY = ("N", "E", "S", "W") # tuple koji određuje pravilo prednosti autima
+PRIORITY = ("N", "E", "S", "W")  # pravilo prednosti autima
 
 # Skretanja:
 LEFT = {"N": "W", "W": "S", "S": "E", "E": "N"}
 RIGHT = {"N": "E", "E": "S", "S": "W", "W": "N"}
 OPPOSITE = {"N": "S", "S": "N", "E": "W", "W": "E"}
+
 
 def build_roads(height, width, horizontal_rows, vertical_cols):
     """
@@ -20,15 +21,7 @@ def build_roads(height, width, horizontal_rows, vertical_cols):
     for _ in range(height):
         row = [""] * width
         roads.append(row)
-    
-    # npr za height=4, width=4
-    # [
-    #  ["", "", "", ""],
-    #  ["", "", "", ""],
-    #  ["", "", "", ""],
-    #  ["", "", "", ""]
-    # ]
-    
+
     for y in horizontal_rows:
         if 0 <= y < height:
             for x in range(width):
@@ -36,14 +29,7 @@ def build_roads(height, width, horizontal_rows, vertical_cols):
                     roads[y][x] += "E"
                 if "W" not in roads[y][x]:
                     roads[y][x] += "W"
-    # horizontal_rows - lista y koordinata kojima prolaze horizontalne ceste npr 1,3
-    # [
-    #  [""  , ""  , ""  , ""  ],
-    #  ["EW", "EW", "EW", "EW"],
-    #  [""  , ""  , ""  , ""  ],
-    #  ["EW", "EW", "EW", "EW"]
-    # ]
-    
+
     for x in vertical_cols:
         if 0 <= x < width:
             for y in range(height):
@@ -51,20 +37,21 @@ def build_roads(height, width, horizontal_rows, vertical_cols):
                     roads[y][x] += "N"
                 if "S" not in roads[y][x]:
                     roads[y][x] += "S"
-    # vertical_cols - lista x koordinata kojima prolaze vertikalne ceste npr 1,3
-    # [
-    #  [""  , "NS"  , ""    , "NS"  ],
-    #  ["EW", "EWNS", "EW  ", "EWNS"],
-    #  [""  , "NS"  , ""    , "NS"  ],
-    #  ["EW", "EWNS", "EW"  , "EWNS"]
-    # ]
+
     return roads
+
 
 def is_intersection(roads, y, x):
     """
-    Ukoliko postoji "EWNS", funkcija to prepoznaje kao križanje i vraća True, u suprotnom vraća False
+    Ukoliko postoji "EWNS", funkcija to prepoznaje kao križanje i vraća True,
+    u suprotnom vraća False.
     """
-    return roads[y][x].count("N") and roads[y][x].count("S") and roads[y][x].count("E") and roads[y][x].count("W")
+    return (
+        roads[y][x].count("N")
+        and roads[y][x].count("S")
+        and roads[y][x].count("E")
+        and roads[y][x].count("W")
+    )
 
 
 def empty_state(height, width):
@@ -80,16 +67,14 @@ def empty_state(height, width):
     već se obrađuju unutar funkcije za ažuriranje stanja (step).
     """
     occ = {}
-
     for d in DIRS:
         lane = []
         for _ in range(height):
             row = [False] * width
             lane.append(row)
-        # za svaki smjer se kreira jedna 2d matrica koja po defaultu sadrži sve False, na početku nijedna ćelija nije occupied
-        occ[d] = lane # sva četiri smjera se dodaju u rječnik occ
-
+        occ[d] = lane
     return occ
+
 
 def seed_vehicles(roads, density, rng=None):
     """
@@ -98,8 +83,8 @@ def seed_vehicles(roads, density, rng=None):
     rng: generator slučajnih brojeva (opcionalno)
 
     Popunjava rječnik praznih matrica (generiran kroz empty_state funkciju) sa nasumično
-    generiranim True vrijednostima koje predstavljaju vozila unutar 
-    nasumične matrice koja predstavlja inicijalni smjer kretanja
+    generiranim True vrijednostima koje predstavljaju vozila unutar
+    nasumične matrice koja predstavlja inicijalni smjer kretanja.
     """
     if rng is None:
         rng = random.Random()
@@ -118,17 +103,24 @@ def seed_vehicles(roads, density, rng=None):
                     occ[d][y][x] = True
     return occ
 
+
 def choose_turn(
-    roads, y, x, incoming_dir, rng,
-    p_straight=0.70, p_left=0.13, p_right=0.13, p_uturn=0.04
+    roads,
+    y,
+    x,
+    incoming_dir,
+    rng,
+    p_straight=0.70,
+    p_left=0.13,
+    p_right=0.13,
+    p_uturn=0.04,
 ):
     """
     Probabilistički odabire smjer na raskrižju:
     - ravno / lijevo / desno prema zadanim vjerojatnostima
     - U-turn ima nisku vjerojatnost (p_uturn)
 
-    Ako preferirani smjer nije dopušten u toj ćeliji, pokušava s alternativama
-    (prvo ostale opcije, a zadnje fallback).
+    Ako preferirani smjer nije dopušten u toj ćeliji, pokušava s alternativama.
     """
     allowed = roads[y][x]
 
@@ -137,7 +129,6 @@ def choose_turn(
     right = RIGHT[incoming_dir]
     uturn = OPPOSITE[incoming_dir]
 
-    # 1) Nasumično izaberi preferirani smjer
     r = rng.random()
     if r < p_straight:
         first_choice = straight
@@ -148,19 +139,17 @@ def choose_turn(
     else:
         first_choice = uturn
 
-    # 2) Fallback redoslijed: prvo preferirani, zatim ostale opcije (da uvijek pronađe neki dopušten smjer ako postoji)
     choices = [first_choice]
     for c in (straight, left, right, uturn):
         if c not in choices:
             choices.append(c)
 
-    # 3) Vrati prvu dopuštenu opciju
     for c in choices:
         if c in allowed:
             return c
 
-    # 4) Sigurnosni fallback (ne bi se trebalo dogoditi)
     return incoming_dir
+
 
 def add_request(requests, key, item):
     """Dodaj item u requests[key]; ako key ne postoji, napravi praznu listu."""
@@ -168,7 +157,19 @@ def add_request(requests, key, item):
         requests[key] = []
     requests[key].append(item)
 
+
 def step(roads, occ, rng=None):
+    """
+    Jedan CA korak (brzina 1) + skretanje na raskrižju.
+
+    Promjena u odnosu na stariju verziju:
+    - Izvan raskrižja konflikti se rješavaju PO TRAKAMA (out_dir),
+      tj. ako dva vozila ulaze u istu ćeliju ali u različite smjerove/trake,
+      oba se mogu upisati (dobiješ '*').
+    - Ako više vozila želi u ISTU traku (isti out_dir) iste ćelije,
+      pušta se jedno (winner), ostali ostaju.
+    - Rub mape: vozilo koje bi izašlo iz mape nestaje (sink boundary).
+    """
     if rng is None:
         rng = random.Random()
 
@@ -215,6 +216,7 @@ def step(roads, occ, rng=None):
             continue
 
         if is_intersection(roads, ty, tx):
+            # Na raskrižju puštaš samo jedno vozilo ukupno (po PRIORITY)
             winner = None
             for p in PRIORITY:
                 for c in candidates:
@@ -230,14 +232,113 @@ def step(roads, occ, rng=None):
             fy, fx, incoming_dir, out_dir = winner
             next_occ[out_dir][ty][tx] = True
 
-            # ostali ostaju na mjestu
+            # ostali ostaju na mjestu u svojoj traci
             for fy2, fx2, incoming2, out2 in candidates:
                 if (fy2, fx2, incoming2, out2) == winner:
                     continue
                 next_occ[incoming2][fy2][fx2] = True
+
         else:
-            # nije raskrižje: nitko ne ulazi, svi ostaju
-            for fy, fx, incoming_dir, out_dir in candidates:
-                next_occ[incoming_dir][fy][fx] = True
+            # Nije raskrižje: rješavanje konflikta po traci (out_dir)
+            by_lane = {}
+            for c in candidates:
+                lane = c[3]  # out_dir
+                if lane not in by_lane:
+                    by_lane[lane] = []
+                by_lane[lane].append(c)
+
+            # Za svaku traku u toj ćeliji odluči:
+            for lane, lane_candidates in by_lane.items():
+                if len(lane_candidates) == 1:
+                    fy, fx, incoming_dir, out_dir = lane_candidates[0]
+                    next_occ[out_dir][ty][tx] = True
+                else:
+                    # više vozila želi u ISTU traku iste ćelije -> pusti jedno
+                    winner = rng.choice(lane_candidates)
+                    fy, fx, incoming_dir, out_dir = winner
+                    next_occ[out_dir][ty][tx] = True
+
+                    # ostali ostaju na mjestu
+                    for fy2, fx2, incoming2, out2 in lane_candidates:
+                        if (fy2, fx2, incoming2, out2) == winner:
+                            continue
+                        next_occ[incoming2][fy2][fx2] = True
 
     return next_occ
+
+
+def print_state(roads, occ):
+    """
+    ASCII prikaz stanja.
+    - '.' = nije cesta
+    - '-' = horizontalna cesta (EW)
+    - '|' = vertikalna cesta (NS)
+    - '+' = raskrižje (NESW)
+    - 'N','E','S','W' = vozilo (ako ih je više u istoj ćeliji, ispisuje '*')
+    """
+    h = len(roads)
+    w = len(roads[0])
+
+    for y in range(h):
+        row_chars = []
+        for x in range(w):
+            allowed = roads[y][x]
+            if allowed == "":
+                row_chars.append(".")
+                continue
+
+            is_h = ("E" in allowed or "W" in allowed)
+            is_v = ("N" in allowed or "S" in allowed)
+            if is_h and is_v:
+                base = "+"
+            elif is_h:
+                base = "-"
+            else:
+                base = "|"
+
+            present_dirs = [d for d in DIRS if occ[d][y][x]]
+            if len(present_dirs) == 0:
+                row_chars.append(base)
+            elif len(present_dirs) == 1:
+                row_chars.append(present_dirs[0])
+            else:
+                row_chars.append("*")
+
+        print("".join(row_chars))
+
+
+def simulate(roads, occ, steps, seed=None, print_every=1):
+    """
+    Pokrene simulaciju 'steps' koraka.
+    Uz proslijeđeni seed, dobije se reproducibilno skretanje i seeding.
+    """
+    rng = random.Random(seed)
+
+    for t in range(steps + 1):
+        if t % print_every == 0:
+            print(f"\n--- t={t} ---")
+            print_state(roads, occ)
+
+        if t == steps:
+            break
+
+        occ = step(roads, occ, rng=rng)
+
+    return occ
+
+
+# ======= PRIMJER UPOTREBE =======
+
+# 10x20 mreža, 3 horizontalne i 3 vertikalne ceste
+height, width = 10, 20
+horizontal_rows = [2, 5, 8]
+vertical_cols = [4, 10, 16]
+
+roads = build_roads(height, width, horizontal_rows, vertical_cols)
+
+# seed vozila s gustoćom 0.15 (15%)
+rng0 = random.Random(123)  # reproducibilno punjenje
+occ0 = seed_vehicles(roads, density=0.15, rng=rng0)
+
+# simuliraj 20 koraka, ispisuj svaki korak, reproducibilno skretanje
+occ_final = simulate(roads, occ0, steps=20, seed=999, print_every=1)
