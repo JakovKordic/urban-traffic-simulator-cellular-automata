@@ -179,6 +179,7 @@ def step(roads, occ, rng=None):
 
     # requests: ciljna ćelija -> lista kandidata (from_y, from_x, incoming_dir, out_dir)
     requests = {}
+    exits = 0
 
     # 1) Generiranje zahtjeva
     for incoming_dir in DIRS:
@@ -192,6 +193,7 @@ def step(roads, occ, rng=None):
 
                 # izlazak iz mape -> vozilo nestaje
                 if not (0 <= ny < h and 0 <= nx < w):
+                    exits += 1
                     continue
 
                 # ako ciljna ćelija ne podržava dolazni smjer -> ostani
@@ -264,4 +266,4 @@ def step(roads, occ, rng=None):
                             continue
                         next_occ[incoming2][fy2][fx2] = True
 
-    return next_occ
+    return next_occ, exits
