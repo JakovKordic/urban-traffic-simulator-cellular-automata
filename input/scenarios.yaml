@@ -1,0 +1,17 @@
+light:
+  traffic:
+    density: 0.05
+    steps: 100
+    seed: 1
+
+medium:
+  traffic:
+    density: 0.15
+    steps: 100
+    seed: 2
+
+heavy:
+  traffic:
+    density: 0.35
+    steps: 100
+    seed: 3
