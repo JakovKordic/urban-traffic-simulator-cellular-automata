@@ -1,0 +1,12 @@
+grid:
+  height: 10
+  width: 20
+
+roads:
+  horizontal_rows: [2, 5, 8]
+  vertical_cols: [4, 10, 16]
+
+traffic:
+  density: 0.15
+  steps: 20
+  seed: 999
