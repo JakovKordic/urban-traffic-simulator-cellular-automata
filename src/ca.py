@@ -1,16 +1,13 @@
 import random
 
-# Smjerovi kao znakovi radi
-DIRS = ("N", "E", "S", "W")  # tuple jer je immutable
-DXY = {"N": (-1, 0), "E": (0, 1), "S": (1, 0), "W": (0, -1)}  # promjena (dy, dx)
+DIRS = ("N", "E", "S", "W")
+DXY = {"N": (-1, 0), "E": (0, 1), "S": (1, 0), "W": (0, -1)}
 
-PRIORITY = ("N", "E", "S", "W")  # pravilo prednosti autima
+PRIORITY = ("N", "E", "S", "W")
 
-# Skretanja:
 LEFT = {"N": "W", "W": "S", "S": "E", "E": "N"}
 RIGHT = {"N": "E", "E": "S", "S": "W", "W": "N"}
 OPPOSITE = {"N": "S", "S": "N", "E": "W", "W": "E"}
-
 
 def build_roads(height, width, horizontal_rows, vertical_cols):
     """
@@ -177,11 +174,9 @@ def step(roads, occ, rng=None):
     w = len(roads[0])
     next_occ = empty_state(h, w)
 
-    # requests: ciljna ćelija -> lista kandidata (from_y, from_x, incoming_dir, out_dir)
     requests = {}
     exits = 0
 
-    # 1) Generiranje zahtjeva
     for incoming_dir in DIRS:
         dy, dx = DXY[incoming_dir]
         for y in range(h):
@@ -191,26 +186,21 @@ def step(roads, occ, rng=None):
 
                 ny, nx = y + dy, x + dx
 
-                # izlazak iz mape -> vozilo nestaje
                 if not (0 <= ny < h and 0 <= nx < w):
                     exits += 1
                     continue
 
-                # ako ciljna ćelija ne podržava dolazni smjer -> ostani
                 if incoming_dir not in roads[ny][nx]:
                     add_request(requests, (y, x), (y, x, incoming_dir, incoming_dir))
                     continue
 
-                # odabir smjera nakon ulaska u raskrižje
                 if is_intersection(roads, ny, nx):
                     out_dir = choose_turn(roads, ny, nx, incoming_dir, rng)
                 else:
                     out_dir = incoming_dir
 
-                # uspješan pokušaj ulaska u ciljnu ćeliju
                 add_request(requests, (ny, nx), (y, x, incoming_dir, out_dir))
 
-    # 2) Rješavanje zahtjeva i upis u next_occ
     for (ty, tx), candidates in requests.items():
         if len(candidates) == 1:
             fy, fx, incoming_dir, out_dir = candidates[0]
@@ -218,11 +208,10 @@ def step(roads, occ, rng=None):
             continue
 
         if is_intersection(roads, ty, tx):
-            # Na raskrižju puštaš samo jedno vozilo ukupno (po PRIORITY)
             winner = None
             for p in PRIORITY:
                 for c in candidates:
-                    if c[2] == p:  # incoming_dir
+                    if c[2] == p:
                         winner = c
                         break
                 if winner is not None:
@@ -234,33 +223,28 @@ def step(roads, occ, rng=None):
             fy, fx, incoming_dir, out_dir = winner
             next_occ[out_dir][ty][tx] = True
 
-            # ostali ostaju na mjestu u svojoj traci
             for fy2, fx2, incoming2, out2 in candidates:
                 if (fy2, fx2, incoming2, out2) == winner:
                     continue
                 next_occ[incoming2][fy2][fx2] = True
 
         else:
-            # Nije raskrižje: rješavanje konflikta po traci (out_dir)
             by_lane = {}
             for c in candidates:
-                lane = c[3]  # out_dir
+                lane = c[3]
                 if lane not in by_lane:
                     by_lane[lane] = []
                 by_lane[lane].append(c)
 
-            # Za svaku traku u toj ćeliji odluči:
             for lane, lane_candidates in by_lane.items():
                 if len(lane_candidates) == 1:
                     fy, fx, incoming_dir, out_dir = lane_candidates[0]
                     next_occ[out_dir][ty][tx] = True
                 else:
-                    # više vozila želi u ISTU traku iste ćelije -> pusti jedno
                     winner = rng.choice(lane_candidates)
                     fy, fx, incoming_dir, out_dir = winner
                     next_occ[out_dir][ty][tx] = True
 
-                    # ostali ostaju na mjestu
                     for fy2, fx2, incoming2, out2 in lane_candidates:
                         if (fy2, fx2, incoming2, out2) == winner:
                             continue

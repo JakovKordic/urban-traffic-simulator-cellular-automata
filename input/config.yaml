@@ -10,3 +10,11 @@ traffic:
   density: 0.15
   steps: 20
   seed: 999
+
+  reseed:
+    enabled: true
+    density: 0.15
+    announce: true
+
+render:
+  print_every: 5

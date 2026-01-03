@@ -1,4 +1,3 @@
-# src/main.py
 import random
 import csv
 from pathlib import Path
@@ -40,9 +39,14 @@ def run_one(cfg, print_every=0):
     steps = cfg["traffic"]["steps"]
     seed = cfg["traffic"]["seed"]
 
+    reseed_cfg = cfg["traffic"].get("reseed", {})
+    reseed_enabled = reseed_cfg.get("enabled", False)
+    reseed_density = reseed_cfg.get("density", density)
+    reseed_announce = reseed_cfg.get("announce", False)
+
     roads = build_roads(height, width, horizontal_rows, vertical_cols)
 
-    rng0 = random.Random(seed)  # seed za početno stanje (jednostavno)
+    rng0 = random.Random(seed)
     occ0 = seed_vehicles(roads, density=density, rng=rng0)
 
     occ_final, metrics = simulate(
@@ -51,6 +55,9 @@ def run_one(cfg, print_every=0):
         steps=steps,
         seed=seed,
         print_every=print_every,
+        reseed_on_empty=reseed_enabled,
+        reseed_density=reseed_density,
+        reseed_announce=reseed_announce,
     )
     return occ_final, metrics
 
@@ -59,17 +66,16 @@ def main():
     base_cfg = load_config("input/config.yaml")
     scenarios = load_scenarios("input/scenarios.yaml")
 
-    # Ako nema scenarija, samo pokreni base config
+    print_every = base_cfg.get("render", {}).get("print_every", 1)
+
     if not scenarios:
-        _, metrics = run_one(base_cfg, print_every=1)
+        _, metrics = run_one(base_cfg, print_every=print_every)
         write_metrics_csv("output/base.csv", metrics)
         return
 
-    # Pokreni svaki scenarij
     for name, override in scenarios.items():
         cfg = deep_update(base_cfg, override)
 
-        print_every = 0  # za scenarije obično ne ispisuješ sve
         _, metrics = run_one(cfg, print_every=print_every)
 
         out_path = f"output/{name}.csv"
